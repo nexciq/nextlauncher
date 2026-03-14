@@ -21,7 +21,7 @@ public class NLModInstaller {
      * ← Change this to your actual release URL after uploading the mod JAR.
      */
     public static final String MOD_URL =
-            "https://github.com/twoj-nick/nextlauncher/releases/download/v1.0.0/nextlauncher-mod-1.0.0.jar";
+            "https://github.com/nexciq/nextlauncher/releases/download/v1.0.0/nextlauncher-mod-1.0.0.jar";
 
     public static final String MOD_FILENAME = "nextlauncher-mod.jar";
 

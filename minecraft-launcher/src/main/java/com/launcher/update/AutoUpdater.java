@@ -16,7 +16,7 @@ public class AutoUpdater {
      * Your GitHub repo in "owner/repo" format.
      * The updater reads releases from: https://github.com/{GITHUB_REPO}/releases
      */
-    private static final String GITHUB_REPO = "twoj-nick/nextlauncher"; // ← zmień na swoje repo
+    private static final String GITHUB_REPO = "nexciq/nextlauncher";
 
     private static final String API_URL =
             "https://api.github.com/repos/" + GITHUB_REPO + "/releases/latest";
