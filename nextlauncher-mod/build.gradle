@@ -3,7 +3,25 @@ plugins {
     id 'maven-publish'
 }
 
-version = project.mod_version
+// Select target MC version via -Pmc=1.21.1 (default) or -Pmc=1.20.4
+def mcTarget = project.findProperty('mc') ?: '1.21.1'
+
+def mcConfigs = [
+    '1.20.1': [yarn: '1.20.1+build.10:v2', fabric: '0.92.2+1.20.1',  loader: '0.16.9', legacy: true],
+    '1.20.4': [yarn: '1.20.4+build.3:v2',  fabric: '0.95.4+1.20.4',  loader: '0.16.9', legacy: true],
+    '1.20.6': [yarn: '1.20.6+build.3:v2',  fabric: '0.97.8+1.20.6',  loader: '0.16.9', legacy: true],
+    '1.21':   [yarn: '1.21+build.9:v2',     fabric: '0.100.8+1.21',   loader: '0.16.9', legacy: false],
+    '1.21.1': [yarn: '1.21.1+build.3:v2',  fabric: '0.104.0+1.21.1', loader: '0.16.9', legacy: false],
+]
+
+if (!mcConfigs.containsKey(mcTarget)) {
+    throw new GradleException("Unsupported MC version: ${mcTarget}. Supported: ${mcConfigs.keySet()}")
+}
+
+def cfg = mcConfigs[mcTarget]
+def isLegacy = cfg.legacy  // true = 1.20.x (renderLabel without seeThrough param)
+
+version = "${project.mod_version}+mc${mcTarget}"
 group = project.maven_group
 
 base {
@@ -15,17 +33,41 @@ repositories {
 }
 
 dependencies {
-    minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    mappings "net.fabricmc:yarn:${project.yarn_mappings}"
-    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    minecraft "com.mojang:minecraft:${mcTarget}"
+    mappings "net.fabricmc:yarn:${cfg.yarn}"
+    modImplementation "net.fabricmc:fabric-loader:${cfg.loader}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${cfg.fabric}"
 }
 
+// Pick mixin json based on MC version family
 processResources {
     inputs.property "version", project.version
+    inputs.property "mcTarget", mcTarget
     filteringCharset "UTF-8"
+
+    // Use legacy mixin config for 1.20.x
+    if (isLegacy) {
+        filesMatching("nextlauncher-mod.mixins.json") {
+            filter { line -> line.replace("EntityRendererMixin", "EntityRendererMixinLegacy") }
+        }
+    }
+
     filesMatching("fabric.mod.json") {
-        expand "version": project.version
+        expand "version": project.version,
+               "mcRange": isLegacy ? "~1.20" : "~1.21"
+    }
+}
+
+// Include the right mixin source set
+sourceSets {
+    main {
+        java {
+            if (isLegacy) {
+                srcDir 'src/v1_20/java'
+            } else {
+                srcDir 'src/v1_21/java'
+            }
+        }
     }
 }
 

@@ -570,7 +570,7 @@ public class MainWindow extends JFrame {
                             msg -> { setStatus(msg); appendConsole(msg + "\n"); });
 
                     // NextLauncher mod – adds [NL] badge to nametags of other NL users
-                    NLModInstaller.ensureInstalled(gameDir,
+                    NLModInstaller.ensureInstalled(gameDir, vi.id,
                             msg -> { setStatus(msg); appendConsole(msg + "\n"); });
 
                     launchProfile = fabric.mergeProfiles(versionData, fabricProfile);
@@ -584,6 +584,9 @@ public class MainWindow extends JFrame {
                         selectedProfile.getAccessToken(), selectedProfile.isMicrosoft());
 
                 Process proc = new GameLauncher(gameDir).launch(launchProfile, auth, selectedProfile);
+
+                // Register UUID with NL backend (fire-and-forget)
+                NLModInstaller.registerUuid(selectedProfile.getUuid());
 
                 setStatus("Minecraft uruchomiony.");
                 appendConsole(">>> Minecraft " + vi.id
