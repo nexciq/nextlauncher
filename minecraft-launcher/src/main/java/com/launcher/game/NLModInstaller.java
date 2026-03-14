@@ -9,15 +9,7 @@ import java.util.function.Consumer;
 
 /**
  * Downloads the correct NextLauncher Fabric mod JAR for the active MC version,
- * and registers the player's UUID with the NL user registry.
- *
- * Mod JARs are released on GitHub as:
- *   nextlauncher-mod-1.0.0+mc1.21.jar   → for MC 1.21.x
- *   nextlauncher-mod-1.0.0+mc1.20.jar   → for MC 1.20.x
- *
- * UUID registration endpoint (Cloudflare Worker):
- *   Set REGISTER_URL to your deployed worker URL, e.g.
- *   https://nextlauncher-register.<your-subdomain>.workers.dev
+ * and registers the player's UUID with the NL user registry via Cloudflare Worker.
  */
 public class NLModInstaller {
 
@@ -25,22 +17,20 @@ public class NLModInstaller {
             "https://github.com/nexciq/nextlauncher/releases/download/v1.0.0/";
 
     /**
-     * Maps MC major version prefix → mod JAR filename suffix.
-     * Key = prefix matched against mcVersion (e.g. "1.21" matches "1.21.1", "1.21.4" etc.)
+     * Maps MC major version prefix → mod JAR filename on GitHub Releases.
+     * Key matched with startsWith against the running MC version.
      */
     private static final Map<String, String> VERSION_MAP = Map.of(
-        "1.21", "nextlauncher-mod-1.0.0+mc1.21.jar",
-        "1.20", "nextlauncher-mod-1.0.0+mc1.20.jar"
+        "1.21.11", "nextlauncher-mod-1.0.0+mc1.21.11.jar",
+        "1.21",    "nextlauncher-mod-1.0.0+mc1.21.1.jar",
+        "1.20",    "nextlauncher-mod-1.0.0+mc1.20.4.jar"
     );
 
     public static final String MOD_FILENAME = "nextlauncher-mod.jar";
 
-    /**
-     * URL of the Cloudflare Worker that registers player UUIDs.
-     * Leave blank to skip auto-registration.
-     * Set to your worker URL after: wrangler deploy (registration-worker/)
-     */
-    public static final String REGISTER_URL = "https://nextlauncher-register.nexciq.workers.dev";
+    /** Cloudflare Worker endpoint for UUID registration. */
+    public static final String REGISTER_URL =
+            "https://nextlauncher-register.nexciq.workers.dev";
 
     // -------------------------------------------------------------------------
 
@@ -57,18 +47,18 @@ public class NLModInstaller {
 
         Path modsDir = gameDir.resolve("mods");
         Path modJar  = modsDir.resolve(MOD_FILENAME);
+        Path marker  = modsDir.resolve(".nl-mod-version");
 
         try {
             Files.createDirectories(modsDir);
 
-            // Re-download if the file is from a different MC version (name stored in a marker)
-            Path marker = modsDir.resolve(".nl-mod-version");
+            // Re-download if the cached version doesn't match
             if (Files.exists(modJar) && Files.exists(marker)) {
                 String current = Files.readString(marker, StandardCharsets.UTF_8).trim();
-                if (current.equals(jarName)) return; // correct version already installed
-                Files.delete(modJar); // wrong version, re-download
-            } else if (Files.exists(modJar)) {
-                return; // assume correct (legacy, no marker)
+                if (current.equals(jarName)) return;
+                Files.delete(modJar);
+            } else if (Files.exists(modJar) && Files.exists(marker)) {
+                return;
             }
 
             if (status != null) status.accept("Pobieranie NextLauncher Mod dla MC " + mcVersion + "…");
@@ -85,12 +75,10 @@ public class NLModInstaller {
     }
 
     /**
-     * Registers the player UUID with the backend in a fire-and-forget thread.
-     * Does nothing if REGISTER_URL is blank.
+     * Registers the player UUID with the Cloudflare Worker backend.
+     * Fire-and-forget background thread.
      */
     public static void registerUuid(String uuid) {
-        if (REGISTER_URL == null || REGISTER_URL.isBlank()) return;
-
         new Thread(() -> {
             try {
                 HttpURLConnection conn = (HttpURLConnection)
@@ -110,8 +98,10 @@ public class NLModInstaller {
 
     // -------------------------------------------------------------------------
 
-    /** Picks the JAR name for the given MC version, or null if unsupported. */
     private static String resolveJarName(String mcVersion) {
+        // Check exact match first (e.g. "1.21.11")
+        if (VERSION_MAP.containsKey(mcVersion)) return VERSION_MAP.get(mcVersion);
+        // Then prefix match (e.g. "1.21.x" → "1.21")
         for (Map.Entry<String, String> e : VERSION_MAP.entrySet()) {
             if (mcVersion.startsWith(e.getKey())) return e.getValue();
         }

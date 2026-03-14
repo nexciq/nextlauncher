@@ -18,6 +18,6 @@
   "depends": {
     "fabricloader": ">=0.15.0",
     "fabric-api": "*",
-    "minecraft": "${mcRange}"
+    "minecraft": "~1.21"
   }
 }
