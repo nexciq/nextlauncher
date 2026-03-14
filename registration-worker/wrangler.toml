@@ -2,5 +2,6 @@ name = "nextlauncher-register"
 main = "worker.js"
 compatibility_date = "2024-01-01"
 
-# Secrets (set via: wrangler secret put GITHUB_TOKEN)
-# GITHUB_TOKEN = fine-grained PAT, Contents: Read & Write on nexciq/nextlauncher
+[[kv_namespaces]]
+binding = "NL_USERS"
+id = "5bdc6d2b6a474ac2b62a25cc3d591745"

@@ -1,17 +1,19 @@
 plugins {
-    id 'fabric-loom' version '1.9-SNAPSHOT'
+    id 'fabric-loom' version '1.15.5'
     id 'maven-publish'
 }
 
-// Select target MC version via -Pmc=1.21.1 (default) or -Pmc=1.20.4
-def mcTarget = project.findProperty('mc') ?: '1.21.1'
+// Select target MC version via -Pmc=1.21.11 (default) or -Pmc=1.20.4 etc.
+def mcTarget = project.findProperty('mc') ?: '1.21.11'
 
 def mcConfigs = [
-    '1.20.1': [yarn: '1.20.1+build.10:v2', fabric: '0.92.2+1.20.1',  loader: '0.16.9', legacy: true],
-    '1.20.4': [yarn: '1.20.4+build.3:v2',  fabric: '0.95.4+1.20.4',  loader: '0.16.9', legacy: true],
-    '1.20.6': [yarn: '1.20.6+build.3:v2',  fabric: '0.97.8+1.20.6',  loader: '0.16.9', legacy: true],
-    '1.21':   [yarn: '1.21+build.9:v2',     fabric: '0.100.8+1.21',   loader: '0.16.9', legacy: false],
-    '1.21.1': [yarn: '1.21.1+build.3:v2',  fabric: '0.104.0+1.21.1', loader: '0.16.9', legacy: false],
+    '1.20.1':  [yarn: '1.20.1+build.10:v2',  fabric: '0.92.2+1.20.1',    loader: '0.16.9', legacy: true],
+    '1.20.4':  [yarn: '1.20.4+build.3:v2',   fabric: '0.95.4+1.20.4',    loader: '0.16.9', legacy: true],
+    '1.20.6':  [yarn: '1.20.6+build.3:v2',   fabric: '0.97.8+1.20.6',    loader: '0.16.9', legacy: true],
+    '1.21':    [yarn: '1.21+build.9:v2',      fabric: '0.100.8+1.21',     loader: '0.16.9', legacy: false],
+    '1.21.1':  [yarn: '1.21.1+build.3:v2',   fabric: '0.104.0+1.21.1',   loader: '0.16.9', legacy: false],
+    '1.21.4':  [yarn: '1.21.4+build.8:v2',   fabric: '0.110.5+1.21.4',   loader: '0.16.9', legacy: false],
+    '1.21.11': [yarn: '1.21.11+build.4:v2',  fabric: '0.141.3+1.21.11',  loader: '0.18.4', legacy: false],
 ]
 
 if (!mcConfigs.containsKey(mcTarget)) {
@@ -20,6 +22,7 @@ if (!mcConfigs.containsKey(mcTarget)) {
 
 def cfg = mcConfigs[mcTarget]
 def isLegacy = cfg.legacy  // true = 1.20.x (renderLabel without seeThrough param)
+def isNewRender = mcTarget in ['1.21.4', '1.21.11']  // true = 1.21.4+ render state API
 
 version = "${project.mod_version}+mc${mcTarget}"
 group = project.maven_group
@@ -45,7 +48,6 @@ processResources {
     inputs.property "mcTarget", mcTarget
     filteringCharset "UTF-8"
 
-    // Use legacy mixin config for 1.20.x
     if (isLegacy) {
         filesMatching("nextlauncher-mod.mixins.json") {
             filter { line -> line.replace("EntityRendererMixin", "EntityRendererMixinLegacy") }
@@ -58,12 +60,13 @@ processResources {
     }
 }
 
-// Include the right mixin source set
 sourceSets {
     main {
         java {
             if (isLegacy) {
                 srcDir 'src/v1_20/java'
+            } else if (isNewRender) {
+                srcDir 'src/v1_21_4/java'
             } else {
                 srcDir 'src/v1_21/java'
             }

@@ -1,73 +1,67 @@
 /**
- * NextLauncher UUID Registration Worker (Cloudflare Workers)
- * Uses GitHub Actions workflow_dispatch to update nl-users.json
- * so that only the workflow's GITHUB_TOKEN (with write access) touches the file.
+ * NextLauncher UUID Registration Worker
+ * Uses Cloudflare KV for storage — no GitHub token needed.
+ *
+ * Endpoints:
+ *   POST /register?uuid=<uuid>   Register a player UUID
+ *   GET  /users                  Return JSON array of all registered UUIDs
  */
 
-const GITHUB_OWNER = "nexciq";
-const GITHUB_REPO  = "nextlauncher";
-const WORKFLOW_ID  = "register-user.yml";
-const BRANCH       = "main";
-
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const KV_KEY = "uuids";
 
 export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") return cors(new Response(null, { status: 204 }));
-    if (request.method !== "POST") return cors(new Response("Method Not Allowed", { status: 405 }));
 
     const url = new URL(request.url);
-    let uuid = url.searchParams.get("uuid");
-    if (!uuid) {
-      try { uuid = (await request.json()).uuid; } catch (_) {}
-    }
 
-    if (!uuid || !UUID_REGEX.test(uuid)) {
-      return cors(new Response(JSON.stringify({ error: "Invalid UUID" }), {
-        status: 400, headers: { "Content-Type": "application/json" }
+    // GET /users — return full UUID list
+    if (request.method === "GET" && url.pathname === "/users") {
+      const users = await env.NL_USERS.get(KV_KEY, "json") || [];
+      return cors(new Response(JSON.stringify(users), {
+        headers: { "Content-Type": "application/json" }
       }));
     }
 
-    uuid = uuid.toLowerCase();
+    // POST /register?uuid=<uuid>
+    if (request.method === "POST") {
+      let uuid = url.searchParams.get("uuid");
+      if (!uuid) {
+        try { uuid = (await request.json()).uuid; } catch (_) {}
+      }
 
-    try {
-      // Trigger the GitHub Actions workflow to add the UUID
-      const resp = await fetch(
-        `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/actions/workflows/${WORKFLOW_ID}/dispatches`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${env.GITHUB_TOKEN}`,
-            Accept: "application/vnd.github+json",
-            "Content-Type": "application/json",
-            "User-Agent": "NextLauncher-Worker/1.0",
-          },
-          body: JSON.stringify({ ref: BRANCH, inputs: { uuid } }),
-        }
-      );
+      if (!uuid || !UUID_REGEX.test(uuid)) {
+        return cors(new Response(JSON.stringify({ error: "Invalid UUID" }), {
+          status: 400, headers: { "Content-Type": "application/json" }
+        }));
+      }
 
-      if (resp.status === 204) {
-        return cors(new Response(JSON.stringify({ status: "queued", uuid }), {
+      uuid = uuid.toLowerCase();
+
+      const users = await env.NL_USERS.get(KV_KEY, "json") || [];
+
+      if (users.includes(uuid)) {
+        return cors(new Response(JSON.stringify({ status: "already_registered" }), {
           headers: { "Content-Type": "application/json" }
         }));
       }
 
-      const err = await resp.text();
-      return cors(new Response(JSON.stringify({ error: "GitHub error", detail: err }), {
-        status: 502, headers: { "Content-Type": "application/json" }
-      }));
+      users.push(uuid);
+      await env.NL_USERS.put(KV_KEY, JSON.stringify(users));
 
-    } catch (e) {
-      return cors(new Response(JSON.stringify({ error: e.message }), {
-        status: 500, headers: { "Content-Type": "application/json" }
+      return cors(new Response(JSON.stringify({ status: "registered", uuid }), {
+        headers: { "Content-Type": "application/json" }
       }));
     }
+
+    return cors(new Response("Not Found", { status: 404 }));
   }
 };
 
 function cors(response) {
   const r = new Response(response.body, response);
   r.headers.set("Access-Control-Allow-Origin", "*");
-  r.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  r.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   return r;
 }

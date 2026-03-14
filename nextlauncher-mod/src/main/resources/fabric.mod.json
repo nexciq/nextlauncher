@@ -5,6 +5,7 @@
   "name": "NextLauncher Mod",
   "description": "Shows [NL] badge above players using NextLauncher on servers.",
   "authors": ["NextLauncher"],
+  "icon": "assets/nextlauncher-mod/icon.png",
   "license": "MIT",
   "environment": "client",
   "entrypoints": {
@@ -18,6 +19,6 @@
   "depends": {
     "fabricloader": ">=0.15.0",
     "fabric-api": "*",
-    "minecraft": "${mcRange}"
+    "minecraft": "~1.21"
   }
 }
