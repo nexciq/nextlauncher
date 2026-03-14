@@ -40,7 +40,7 @@ public class NLModInstaller {
      * Leave blank to skip auto-registration.
      * Set to your worker URL after: wrangler deploy (registration-worker/)
      */
-    public static final String REGISTER_URL = "";
+    public static final String REGISTER_URL = "https://nextlauncher-register.nexciq.workers.dev";
 
     // -------------------------------------------------------------------------
 

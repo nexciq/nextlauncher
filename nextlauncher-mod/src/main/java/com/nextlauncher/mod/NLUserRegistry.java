@@ -24,7 +24,7 @@ public class NLUserRegistry {
 
     // ← Optional: REST endpoint that accepts POST ?uuid=<uuid> to register a user.
     // Leave empty to skip auto-registration.
-    private static final String REGISTER_URL = "";
+    private static final String REGISTER_URL = "https://nextlauncher-register.nexciq.workers.dev";
 
     private static final Set<String> nlUsers = Collections.synchronizedSet(new HashSet<>());
 

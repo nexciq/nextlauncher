@@ -1,0 +1,57 @@
+name: Register NL User
+
+on:
+  workflow_dispatch:
+    inputs:
+      uuid:
+        description: "Player UUID to register"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  register:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Add UUID to nl-users.json
+        run: |
+          UUID="${{ github.event.inputs.uuid }}"
+
+          # Validate UUID format
+          if ! echo "$UUID" | grep -qE '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'; then
+            echo "Invalid UUID format: $UUID"
+            exit 1
+          fi
+
+          # Add UUID if not already present
+          if python3 -c "
+          import json, sys
+          with open('nl-users.json') as f:
+              users = json.load(f)
+          uuid = '$UUID'.lower()
+          if uuid in users:
+              print('already_registered')
+              sys.exit(0)
+          users.append(uuid)
+          with open('nl-users.json', 'w') as f:
+              json.dump(users, f, indent=2)
+              f.write('\n')
+          print('registered')
+          "; then
+            echo "UUID processed"
+          fi
+
+      - name: Commit if changed
+        run: |
+          git config user.name "NextLauncher Bot"
+          git config user.email "bot@nextlauncher.dev"
+          git diff --quiet nl-users.json || (
+            git add nl-users.json &&
+            git commit -m "Register NL user ${{ github.event.inputs.uuid }}"  &&
+            git push
+          )
