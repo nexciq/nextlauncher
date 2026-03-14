@@ -62,6 +62,9 @@ public class NLUserRegistry {
                 conn.getResponseCode(); // trigger request
                 conn.disconnect();
             } catch (Exception ignored) {}
+            // Re-fetch after registration so we immediately pick up other NL users
+            // who joined around the same time (instead of waiting up to 60 s).
+            scheduler.schedule(NLUserRegistry::fetchUsers, 3, TimeUnit.SECONDS);
         });
     }
 
@@ -89,7 +92,9 @@ public class NLUserRegistry {
                 String uuid = part.trim().replace("\"", "").replace("'", "");
                 if (!uuid.isBlank()) fresh.add(uuid);
             }
-            nlUsers.clear();
+            // Merge: keep any locally-added UUIDs (e.g. self) and add all from server.
+            // This prevents a race where a player registered themselves but the next
+            // poll fires before the KV write propagates.
             nlUsers.addAll(fresh);
         } catch (Exception ignored) {
             // No internet or wrong URL – fail silently
