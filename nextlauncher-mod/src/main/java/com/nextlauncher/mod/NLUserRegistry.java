@@ -20,7 +20,7 @@ public class NLUserRegistry {
     // ← Change this to your raw GitHub URL:
     // e.g. "https://raw.githubusercontent.com/your-name/nextlauncher/main/nl-users.json"
     private static final String REGISTRY_URL =
-            "https://raw.githubusercontent.com/nexciq/nextlauncher/main/nl-users.json";
+            "https://nextlauncher-register.nexciq.workers.dev/users";
 
     // ← Optional: REST endpoint that accepts POST ?uuid=<uuid> to register a user.
     // Leave empty to skip auto-registration.
